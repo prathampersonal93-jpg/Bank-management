@@ -1,0 +1,283 @@
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <algorithm>
+
+using namespace std;
+
+// ================= BOOK CLASS =================
+class Book {
+    int id;
+    string title;
+    string author;
+    bool issued;
+
+public:
+    Book(int i = 0, string t = "", string a = "", bool s = false) {
+        id = i;
+        title = t;
+        author = a;
+        issued = s;
+    }
+
+    int getId() const { return id; }
+    string getTitle() const { return title; }
+    string getAuthor() const { return author; }
+    bool getStatus() const { return issued; }
+
+    void issue() { issued = true; }
+    void returnBook() { issued = false; }
+
+    void display() const {
+        cout << setw(10) << id
+             << setw(20) << title
+             << setw(20) << author
+             << setw(10) << (issued ? "Issued" : "Available")
+             << endl;
+    }
+};
+
+// ================= USER CLASS =================
+class User {
+    int userid;
+    string name;
+    vector<int> issuedBooks;
+
+public:
+    User(int id = 0, string n = "") {
+        userid = id;
+        name = n;
+    }
+
+    int getId() const { return userid; }
+    string getName() const { return name; }
+
+    void issueBook(int bookId) {
+        issuedBooks.push_back(bookId);
+    }
+
+    void returnBook(int bookId) {
+        issuedBooks.erase(remove(issuedBooks.begin(), issuedBooks.end(), bookId), issuedBooks.end());
+    }
+};
+
+// ================= LIBRARY CLASS =================
+class Library {
+    vector<Book> books;
+    vector<User> users;
+
+public:
+    // ===== FILE SAVE =====
+    void saveBooks() {
+        ofstream file("books.txt");
+        for (auto &b : books) {
+            file << b.getId() << "|"
+                 << b.getTitle() << "|"
+                 << b.getAuthor() << "|"
+                 << b.getStatus() << endl;
+        }
+        file.close();
+    }
+
+    void saveUsers() {
+        ofstream file("users.txt");
+        for (auto &u : users) {
+            file << u.getId() << "|"
+                 << u.getName() << endl;
+        }
+        file.close();
+    }
+
+    // ===== FILE LOAD =====
+    void loadBooks() {
+        ifstream file("books.txt");
+        string line;
+
+        while (getline(file, line)) {
+            int id, status;
+            string title, author;
+
+            size_t p1 = line.find("|");
+            size_t p2 = line.find("|", p1 + 1);
+            size_t p3 = line.find("|", p2 + 1);
+
+            id = stoi(line.substr(0, p1));
+            title = line.substr(p1 + 1, p2 - p1 - 1);
+            author = line.substr(p2 + 1, p3 - p2 - 1);
+            status = stoi(line.substr(p3 + 1));
+
+            books.emplace_back(id, title, author, status);
+        }
+        file.close();
+    }
+
+    void loadUsers() {
+        ifstream file("users.txt");
+        string line;
+
+        while (getline(file, line)) {
+            int id;
+            string name;
+
+            size_t p = line.find("|");
+            id = stoi(line.substr(0, p));
+            name = line.substr(p + 1);
+
+            users.emplace_back(id, name);
+        }
+        file.close();
+    }
+
+    // ===== ADD =====
+    void addBook() {
+        int id;
+        string title, author;
+
+        cout << "Enter Book ID: ";
+        cin >> id;
+        cin.ignore();
+
+        cout << "Enter Title: ";
+        getline(cin, title);
+
+        cout << "Enter Author: ";
+        getline(cin, author);
+
+        books.emplace_back(id, title, author);
+        saveBooks();
+
+        cout << "Book Added Successfully!\n";
+    }
+
+    void addUser() {
+        int id;
+        string name;
+
+        cout << "Enter User ID: ";
+        cin >> id;
+        cin.ignore();
+
+        cout << "Enter Name: ";
+        getline(cin, name);
+
+        users.emplace_back(id, name);
+        saveUsers();
+
+        cout << "User Added Successfully!\n";
+    }
+
+    // ===== DISPLAY =====
+    void displayBooks() {
+        cout << setw(10) << "ID"
+             << setw(20) << "Title"
+             << setw(20) << "Author"
+             << setw(10) << "Status" << endl;
+
+        cout << string(60, '-') << endl;
+
+        for (auto &b : books) {
+            b.display();
+        }
+    }
+
+    // ===== ISSUE =====
+    void issueBook() {
+        int uid, bid;
+        cout << "Enter User ID: ";
+        cin >> uid;
+        cout << "Enter Book ID: ";
+        cin >> bid;
+
+        for (auto &b : books) {
+            if (b.getId() == bid && !b.getStatus()) {
+                b.issue();
+
+                for (auto &u : users) {
+                    if (u.getId() == uid) {
+                        u.issueBook(bid);
+                        saveBooks();
+                        cout << "Book Issued!\n";
+                        return;
+                    }
+                }
+            }
+        }
+        cout << "Issue Failed!\n";
+    }
+
+    // ===== RETURN =====
+    void returnBook() {
+        int uid, bid;
+        cout << "Enter User ID: ";
+        cin >> uid;
+        cout << "Enter Book ID: ";
+        cin >> bid;
+
+        for (auto &b : books) {
+            if (b.getId() == bid && b.getStatus()) {
+                b.returnBook();
+
+                for (auto &u : users) {
+                    if (u.getId() == uid) {
+                        u.returnBook(bid);
+                        saveBooks();
+                        cout << "Book Returned!\n";
+                        return;
+                    }
+                }
+            }
+        }
+        cout << "Return Failed!\n";
+    }
+};
+
+// ================= MAIN =================
+int main() {
+    Library lib;
+
+    lib.loadBooks();
+    lib.loadUsers();
+
+    int choice;
+
+    do {
+        cout << "\n===== LIBRARY MENU =====\n";
+        cout << "1. Add Book\n";
+        cout << "2. Add User\n";
+        cout << "3. Display Books\n";
+        cout << "4. Issue Book\n";
+        cout << "5. Return Book\n";
+        cout << "6. Exit\n";
+
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            lib.addBook();
+            break;
+        case 2:
+            lib.addUser();
+            break;
+        case 3:
+            lib.displayBooks();
+            break;
+        case 4:
+            lib.issueBook();
+            break;
+        case 5:
+            lib.returnBook();
+            break;
+        case 6:
+            cout << "Exiting...\n";
+            break;
+        default:
+            cout << "Invalid Choice!\n";
+        }
+
+    } while (choice != 6);
+
+    return 0;
+}
